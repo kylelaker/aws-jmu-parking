@@ -39,25 +39,26 @@ resource "aws_lambda_function" "download-function" {
   source_code_hash = filebase64sha256("lambda_function_payload.zip")
 
   runtime = "python3.8"
+  timeout = 5
 }
 
 resource "aws_cloudwatch_event_rule" "timer-event" {
-  name = "run-download-lambda"
+  name        = "run-download-lambda"
   description = "Run download Lambda every minute"
 
   schedule_expression = "rate(1 minute)"
 }
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
-  statement_id = "AllowExecutionFromCloudWatch"
-  action = "lambda:InvokeFunction"
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.download-function.function_name
-  principal = "events.amazonaws.com"
-  source_arn = aws_cloudwatch_event_rule.timer-event.arn
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.timer-event.arn
 }
 
 resource "aws_cloudwatch_event_target" "timer-target" {
   target_id = "run-lambda-every-minute"
-  arn = aws_lambda_function.download-function.arn
-  rule = aws_cloudwatch_event_rule.timer-event.name
+  arn       = aws_lambda_function.download-function.arn
+  rule      = aws_cloudwatch_event_rule.timer-event.name
 }
