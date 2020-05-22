@@ -14,7 +14,7 @@ _LOGGER.setLevel(logging.DEBUG)
 s3 = boto3.client('s3')
 
 _TIME_FORMAT = '%Y-%m-%d-%H-%M-%S'
-_DOWNLOAD_URL = 'https://www.jmu.edu/cgi-bin/parking_get_sign_data.cgi'
+_DOWNLOAD_URL = 'https://www.jmu.edu/cgi-bin/parking_sign_data.cgi?hash=53616c7465645f5f2b3bed187af94815467e891744e87dc72a8d6f10cea4270a7fe8e2a08a3981a7a4bfb2ff402c4fdf8dc3cf0ae8b30a50f6ba85c7169b73b1edbafb488b046a19eb9588148d4e725f|869835tg89dhkdnbnsv5sg5wg0vmcf4mfcfc2qwm5968unmeh5'
 
 
 def lambda_handler(event, context):
