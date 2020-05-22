@@ -42,6 +42,11 @@ resource "aws_lambda_function" "download-function" {
   timeout = 5
 }
 
+resource "aws_lambda_function_event_invoke_config" "download-config" {
+  function_name          = aws_lambda_function.download-function.function_name
+  maximum_retry_attempts = 0
+}
+
 resource "aws_cloudwatch_event_rule" "timer-event" {
   name        = "run-download-lambda"
   description = "Run download Lambda every minute"
