@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import * as cw from "aws-cdk-lib/aws-cloudwatch";
 import * as actions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as events from "aws-cdk-lib/aws-events";
@@ -7,10 +7,12 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
+import * as batch from "@aws-cdk/aws-batch-alpha";
+import * as python from "@aws-cdk/aws-lambda-python-alpha";
 import { Construct } from 'constructs';
 
 export interface JmuParkingStackProps extends StackProps {
-  bucketName: string;
+  bucketName?: string;
   alarmEmailAddress?: string;
 }
 
@@ -18,15 +20,18 @@ export class JmuParkingStack extends Stack {
   constructor(scope: Construct, id: string, props: JmuParkingStackProps) {
     super(scope, id, props);
 
-    const bucket = s3.Bucket.fromBucketName(this, "Bucket", props.bucketName);
+    const bucket = this.getOrMakeBucket(props?.bucketName);
 
-    const fn = new lambda.Function(this, "Downloader", {
+    const fn = new python.PythonFunction(this, "Downloader", {
       runtime: lambda.Runtime.PYTHON_3_9,
-      handler: "downloader.lambda_handler",
-      code: lambda.Code.fromAsset("lambda"),
+      index: "downloader.py",
+      handler: "lambda_handler",
+      entry: "lambda/",
+      description: "Downloads parking availability to an S3 bucket",
       memorySize: 256,
       timeout: Duration.seconds(10),
       tracing: lambda.Tracing.ACTIVE,
+      architecture: lambda.Architecture.ARM_64,
       environment: {
         BUCKET_NAME: bucket.bucketName,
       },
@@ -34,8 +39,10 @@ export class JmuParkingStack extends Stack {
 
     bucket.grantWrite(fn);
 
+    const frequency = Duration.minutes(1)
     const rule = new events.Rule(this, "TimerEvent", {
-      schedule: events.Schedule.rate(Duration.minutes(1)),
+      description: `Trigger download every ${frequency.toHumanString()}`,
+      schedule: events.Schedule.rate(frequency),
       targets: [new targets.LambdaFunction(fn)],
     });
 
@@ -53,5 +60,25 @@ export class JmuParkingStack extends Stack {
         new subscriptions.EmailSubscription(props.alarmEmailAddress)
       );
     }
+  }
+
+  private getOrMakeBucket(bucketName?: string): s3.IBucket {
+    if (bucketName) {
+      return s3.Bucket.fromBucketName(this, "Bucket", bucketName);
+    }
+    return new s3.Bucket(this, "Bucket", {
+      // Ensure that objects remain accessible after the bucket is deleted
+      // and prevent issues with overwrites
+      removalPolicy: RemovalPolicy.RETAIN,
+      autoDeleteObjects: false,
+      versioned: true,
+      // Require objects to be encrypted when put in the bucket
+      encryption: s3.BucketEncryption.KMS_MANAGED,
+      // Ensure the bucket is private
+      enforceSSL: true,
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
+    });
   }
 }
