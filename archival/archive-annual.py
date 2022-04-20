@@ -13,8 +13,6 @@ import click
 from botocore.exceptions import ClientError
 
 
-_DATA_BUCKET = 'jmu-parking-data'
-_ARCHIVE_BUCKET = 'jmu-parking-archives'
 _CLIENT = boto3.client('s3')
 
 
@@ -80,13 +78,31 @@ def delete_objects(bucket, objects):
     help="Auto-accept prompts",
     default=False,
 )
-def main(threads, yes):
-    print("Getting S3 API resource")
-    years = ['2019', '2020']
+@click.option(
+    "--data-bucket",
+    type=click.STRING,
+    required=True,
+    help="The S3 bucket where the parking data archives are stored"
+)
+@click.option(
+    "--archive-bucket",
+    type=click.STRING,
+    required=True,
+    help="The S3 bucket where archive data is uploaded"
+)
+@click.option(
+    "--year",
+    "years",
+    type=click.STRING,
+    multiple=True,
+    help="The year to process"
+)
+def main(threads, yes, data_bucket, archive_bucket, years):
+    click.echo(f"Prepping data for: {','.join(years)}")
     data = {}
     for year in years:
         print(f"Listing objects for {year}")
-        data[year] = get_all_s3_objects(_DATA_BUCKET, year)
+        data[year] = get_all_s3_objects(data_bucket, year)
     print("Sorting complete")
     for year, objects in data.items():
         if not objects:
@@ -103,7 +119,7 @@ def main(threads, yes):
                     # A separate client is required for each thread.
                     assert isinstance(object_key, str)
                     file_name = year_dir.joinpath(object_key)
-                    _CLIENT.download_file(_DATA_BUCKET, object_key, str(file_name))
+                    _CLIENT.download_file(data_bucket, object_key, str(file_name))
                     bar.update(1)
 
                 with ThreadPool(processes=threads) as pool:
@@ -117,15 +133,15 @@ def main(threads, yes):
             )
             print("Archive complete.")
 
-            print(f"Uploading s3://{_ARCHIVE_BUCKET}/{year}.tar.xz")
-            _CLIENT.upload_file(f"{year}.tar.xz", _ARCHIVE_BUCKET, f"{year}.tar.xz")
+            print(f"Uploading s3://{archive_bucket}/{year}.tar.xz")
+            _CLIENT.upload_file(f"{year}.tar.xz", archive_bucket, f"{year}.tar.xz")
             waiter = _CLIENT.get_waiter('object_exists')
-            waiter.wait(Bucket=_ARCHIVE_BUCKET, Key=f"{year}.tar.xz")
+            waiter.wait(Bucket=archive_bucket, Key=f"{year}.tar.xz")
             print(f"Upload complete.")
 
         if yes or click.confirm(f"Delete objects for {year}"):
             print(f"Deleting all objects from {year}")
-            failures = delete_objects(_DATA_BUCKET, objects)
+            failures = delete_objects(data_bucket, objects)
             print(f"Failed to delete: {failures}")
     
     return 0
