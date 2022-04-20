@@ -7,8 +7,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sns from "aws-cdk-lib/aws-sns";
 import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions";
-import * as batch from "@aws-cdk/aws-batch-alpha";
-import * as python from "@aws-cdk/aws-lambda-python-alpha";
+import * as nodejs from "aws-cdk-lib/aws-lambda-nodejs"
 import { Construct } from 'constructs';
 
 export interface JmuParkingStackProps extends StackProps {
@@ -22,21 +21,18 @@ export class JmuParkingStack extends Stack {
 
     const bucket = this.getOrMakeBucket(props?.bucketName);
 
-    const fn = new python.PythonFunction(this, "Downloader", {
-      runtime: lambda.Runtime.PYTHON_3_9,
-      index: "downloader.py",
-      handler: "lambda_handler",
-      entry: "lambda/",
+    const fn = new nodejs.NodejsFunction(this, "Downloader", {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      entry: "lambda/downloader.ts",
       description: "Downloads parking availability to an S3 bucket",
       memorySize: 256,
       timeout: Duration.seconds(10),
       tracing: lambda.Tracing.ACTIVE,
       architecture: lambda.Architecture.ARM_64,
       environment: {
-        BUCKET_NAME: bucket.bucketName,
-      },
+        BUCKET_NAME: bucket.bucketName
+      }
     });
-
     bucket.grantWrite(fn);
 
     const frequency = Duration.minutes(1)
