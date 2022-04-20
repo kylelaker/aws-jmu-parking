@@ -15,7 +15,7 @@ describe("Validate datetime formatting", () => {
             expected: "2022-04-20-02-31-46"
         }
     ]
-    it.each(values)("converts known dates properly", async ({date, expected}) => {
+    it.each(values)("converts known dates properly", async ({ date, expected }) => {
         expect(formatLexicographicTimestamp(date)).toStrictEqual(expected);
     })
 });
