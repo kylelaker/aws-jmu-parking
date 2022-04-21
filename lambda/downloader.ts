@@ -7,6 +7,7 @@ import { ScheduledEvent, Context } from 'aws-lambda';
 
 const tracer = new Tracer({ serviceName: 'jmuParkingDownloader' });
 const logger = new Logger({ serviceName: 'jmuParkingDownloader' });
+tracer.provider.setLogger(logger);
 const s3 = tracer.captureAWSv3Client(new S3({ useFipsEndpoint: true }));
 
 const BUCKET = process.env.BUCKET_NAME!;
