@@ -43,7 +43,7 @@ export class JmuParkingStack extends Stack {
     });
 
     const alarm = new cw.Alarm(this, "Errors", {
-      metric: fn.metricErrors({ period: Duration.minutes(1) }),
+      metric: fn.metricErrors({ period: frequency }),
       threshold: 1,
       evaluationPeriods: 60,
       datapointsToAlarm: 10,
