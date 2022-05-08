@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { format } from 'date-fns';
 import { S3 } from '@aws-sdk/client-s3';
+import { LambdaInterface } from '@aws-lambda-powertools/commons'
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { ScheduledEvent, Context } from 'aws-lambda';
@@ -22,27 +23,32 @@ export function formatLexicographicTimestamp(date: Date): string {
   return format(date, 'yyyy-MM-dd-HH-mm-ss');
 }
 
-export async function handler(event: ScheduledEvent, context: Context): Promise<void> {
-  logger.addContext(context);
-  const startTime = new Date(event.time);
-  const objectKey = `${formatLexicographicTimestamp(startTime)}.xml`;
+class Lambda implements LambdaInterface {
+  public async handler(event: ScheduledEvent, context: Context): Promise<void> {
+    logger.addContext(context);
+    const startTime = new Date(event.time);
+    const objectKey = `${formatLexicographicTimestamp(startTime)}.xml`;
 
-  try {
-    // Download data
-    const response = await axios.get(PARKING_URL, { params: REQUIRED_URL_PARMS, transformResponse: (r) => r });
-    const data: string = response.data;
+    try {
+      // Download data
+      const response = await axios.get(PARKING_URL, { params: REQUIRED_URL_PARMS, transformResponse: (r) => r });
+      const data: string = response.data;
 
-    // Push to S3
-    const s3Response = await s3.putObject({ Bucket: BUCKET, Key: objectKey, Body: data });
-    logger.info('Data was successfully written to S3', {
-      data: {
-        statusCode: s3Response.$metadata.httpStatusCode,
-        file: `s3://${BUCKET}/${objectKey}`,
-        body: data,
-        size: data.length,
-      }
-    });
-  } catch (err) {
-    logger.error('Error fetching or writing data', err as Error);
+      // Push to S3
+      const s3Response = await s3.putObject({ Bucket: BUCKET, Key: objectKey, Body: data });
+      logger.info('Data was successfully written to S3', {
+        data: {
+          statusCode: s3Response.$metadata.httpStatusCode,
+          file: `s3://${BUCKET}/${objectKey}`,
+          body: data,
+          size: data.length,
+        }
+      });
+    } catch (err) {
+      logger.error('Error fetching or writing data', err as Error);
+    }
   }
 }
+
+export const handlerClass = new Lambda();
+export const handler = handlerClass.handler;
