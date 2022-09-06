@@ -22,7 +22,7 @@ export class JmuParkingStack extends Stack {
     const bucket = this.getOrMakeBucket(props?.bucketName);
 
     const fn = new nodejs.NodejsFunction(this, "Downloader", {
-      runtime: lambda.Runtime.NODEJS_14_X,
+      runtime: lambda.Runtime.NODEJS_16_X,
       entry: "lambda/downloader.ts",
       description: "Downloads parking availability to an S3 bucket",
       memorySize: 256,
